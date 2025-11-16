@@ -12,7 +12,45 @@ function App() {
   }, []);
 
   const addToCart = (item) => {
-    setCart([...cart, { ...item, qty: 1 }]);
+    const existing = cart.find(c => c._id === item._id);
+    if (existing) {
+      setCart(cart.map(c => c._id === item._id ? { ...c, qty: c.qty + 1 } : c));
+    } else {
+      setCart([...cart, { ...item, qty: 1 }]);
+    }
+  };
+
+  const checkout = async () => {
+    console.log('CHECKOUT CLICKED');
+    console.log('Cart items:', cart);
+
+    if (cart.length === 0) {
+      alert('Cart is empty!');
+      return;
+    }
+
+    const items = cart.map(item => ({
+      name: item.name,
+      price: item.price,
+      qty: item.qty
+    }));
+
+    console.log('Sending to backend:', items);
+
+    try {
+      const res = await axios.post('http://localhost:5000/api/checkout', { items });
+      console.log('Backend response:', res.data);
+
+      if (!res.data.url) {
+        throw new Error('No checkout URL');
+      }
+
+      // Redirect to Stripe Payment Link
+      window.location.href = res.data.url;
+    } catch (err) {
+      console.error('CHECKOUT ERROR:', err.response?.data || err.message);
+      alert('Checkout failed: ' + (err.response?.data?.error || err.message));
+    }
   };
 
   return (
@@ -48,8 +86,11 @@ function App() {
       </div>
 
       {cart.length > 0 && (
-        <div style={{ position: 'fixed', bottom: 20, right: 20, background: '#FF6B35', color: 'white', padding: '16px 24px', borderRadius: 16, boxShadow: '0 8px 24px rgba(255,107,53,0.3)' }}>
-          <strong>{cart.length} item(s) in cart</strong>
+        <div style={{ position: 'fixed', bottom: 20, left: 20, right: 20, background: 'white', padding: 16, borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', textAlign: 'center' }}>
+          <p><strong>Cart: {cart.reduce((sum, i) => sum + i.qty, 0)} items | RM {cart.reduce((sum, i) => sum + i.price * i.qty, 0).toFixed(2)}</strong></p>
+          <button onClick={checkout} style={{ background: '#06D6A0', color: 'white', border: 'none', padding: '14px 32px', borderRadius: 12, fontWeight: 'bold', fontSize: '1.1rem' }}>
+            Checkout with FPX / Card
+          </button>
         </div>
       )}
     </div>
